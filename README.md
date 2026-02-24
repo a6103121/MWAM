@@ -1,6 +1,6 @@
 # Official MWAM in PyTorch
 
-Here is the official PyTorch implementation of MWAM.
+### Here is the official PyTorch implementation of MWAM.
 
 ### MWAM is a plug-and-play module. Due to the varying structures of different projects, we will only demonstrate the process of embedding MWAM into MMANet here.
 
@@ -17,7 +17,7 @@ FRM bank is defined in lines 12-14.
 Two new functions are defined in lines 597-666.
 ```
  - Integrating these computational processes into the forward derivation process, as detailed in lines 561–571 of ```./models/surf_baseline.py```.
- - Add weights from different modalities to the output of the model's forward inference process in the line 595 of ```./models/surf_baseline.py```.
+ - Add weights from different modalities to the output of the model's forward inference process in line 595 of ```./models/surf_baseline.py```.
  - In the training function, utilize weights for gradient editing or loss weighting. Relevant modifications are located in lines 1166, 1214-1220  of the ```./lib/model_develop.py```
 
 For other training and inference procedures, refer to [MMANet](https://github.com/shicaiwei123/MMANet-CVPR2023).
