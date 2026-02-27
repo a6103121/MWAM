@@ -28,5 +28,13 @@ For other training and inference procedures, refer to [MMANet](https://github.co
 
 ## If this project has been helpful to you, please cite the article below.
 ```
-a
+@misc{MWAM,
+      title={Plug, Play, and Fortify: A Low-Cost Module for Robust Multimodal Image Understanding Models}, 
+      author={Siqi Lu and Wanying Xu and Yongbin Zheng and Wenting Luan and Peng Sun and Jianhang Yao},
+      year={2026},
+      eprint={2602.22644},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2602.22644}, 
+}
 ```
