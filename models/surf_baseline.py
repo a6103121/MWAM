@@ -136,128 +136,6 @@ class SURF_Baseline(nn.Module):
 
         # print(x.shape)
         return x, layer3, layer4
-class SURF_Baseline_dual(nn.Module):
-    def __init__(self, args):
-        super().__init__()
-
-        model_resnet18_se_1 = resnet18_se(args, pretrained=False)
-        model_resnet18_se_2 = resnet18_se(args, pretrained=False)
-        self.p = args.p
-        self.drop_mode = args.drop_mode
-        self.args = args
-
-        self.special_bone_rgb = nn.Sequential(model_resnet18_se_1.conv1,
-                                              model_resnet18_se_1.bn1,
-                                              model_resnet18_se_1.relu,
-                                              model_resnet18_se_1.maxpool,
-                                              model_resnet18_se_1.layer1,
-                                              model_resnet18_se_1.layer2,
-                                              model_resnet18_se_1.se_layer)
-        self.special_bone_depth = nn.Sequential(model_resnet18_se_2.conv1,
-                                             model_resnet18_se_2.bn1,
-                                             model_resnet18_se_2.relu,
-                                             model_resnet18_se_2.maxpool,
-                                             model_resnet18_se_2.layer1,
-                                             model_resnet18_se_2.layer2,
-                                             model_resnet18_se_2.se_layer)
-
-
-        self.shared_bone = nn.Sequential(model_resnet18_se_1.layer3_new,
-                                         model_resnet18_se_1.layer4,
-                                         model_resnet18_se_1.avgpool,
-                                         Flatten(1),
-                                         model_resnet18_se_1.fc,
-                                         # model_resnet18_se_1.dropout,
-                                         )
-        self.FreqLayer = FrequencyLayer(64, (112, 112, 3))
-
-        self.rgb_cls = nn.Sequential(model_resnet18_se_1.avgpool,
-                                     Flatten(1),
-                                     nn.Linear(128,2))
-        self.depth_cls = nn.Sequential(model_resnet18_se_2.avgpool,
-                                     Flatten(1),
-                                     nn.Linear(128, 2))
-
-    def forward(self, img_rgb, img_depth):
-        rgb_low, rgb_high = self.FreqLayer(img_rgb)
-        depth_low, depth_high = self.FreqLayer(img_depth)
-
-        rgb_weight = (rgb_low / (rgb_high + 1e-6)).abs().sum()
-        depth_weight = (depth_low / (depth_high + 1e-6)).abs().sum()
-
-        # rgb_weight = 0.8 * ((rgb_low).abs().sum()) + 0.2 * ((rgb_high).abs().sum())
-        # depth_weight = 0.8 * ((depth_low).abs().sum()) + 0.2 * ((depth_high).abs().sum())
-
-
-        r_w, d_w = self.weightFun(rgb_weight, depth_weight)
-        # print(r_w,d_w)
-        # r_w, d_w = 0,0
-        # print(img_depth)
-        x_rgb = self.special_bone_rgb(img_rgb)
-        x_depth = self.special_bone_depth(img_depth)
-
-        # print(self.drop_mode)
-
-        # if self.drop_mode == 'average':
-        #     # print(1)
-        #     x_rgb, x_depth,  p = modality_drop_dual(x_rgb, x_depth,  self.p, self.args)
-        # else:
-        #     # print(2)
-        #     x_rgb, x_depth, p = unbalance_modality_drop(x_rgb, x_depth, self.p, self.args)
-
-        x = torch.cat((x_rgb, x_depth), dim=1)
-        layer3 = self.shared_bone[0](x)
-        layer4 = self.shared_bone[1](layer3)
-        x = self.shared_bone[2](layer4)
-        x = self.shared_bone[3](x)
-        x = self.shared_bone[4](x)
-        # x = self.shared_bone[5](x)
-
-        # print(x.shape)
-        return (x, layer3, layer4),(r_w,d_w)
-
-    def fresh_bank(self,rgb_,depth_):
-        global loss_bank_rgb, loss_bank_depth,loss_bank_ir
-
-        if loss_bank_rgb == 0:
-            loss_bank_rgb = rgb_
-        else:
-            loss_bank_rgb = (loss_bank_rgb + rgb_) / 2
-
-        if loss_bank_depth == 0:
-            loss_bank_depth = depth_
-        else:
-            loss_bank_depth = (loss_bank_depth + depth_) / 2
-
-
-    def weightFun(self, rgb_w, depth_w):
-        global loss_bank_rgb, loss_bank_depth,loss_bank_ir
-        inpt = [float(rgb_w.cpu().numpy()), float(depth_w.cpu().numpy())]
-
-        alpha = 1.5
-        beta = 1
-        gama = 0.7
-        sigma = 4
-        init_weight=0.5
-
-        self.fresh_bank(float(rgb_w.cpu().numpy()), float(depth_w.cpu().numpy()))
-
-        if (loss_bank_rgb == 0 or loss_bank_depth == 0):
-            inpt[0] = init_weight
-            inpt[1] = init_weight
-
-        else:
-            mean = (loss_bank_rgb + loss_bank_depth ) / 2
-            aa = inpt[0] / (mean + 1e-6)
-            bb = inpt[1] / (mean + 1e-6)
-
-            aa = alpha - beta * (1 / (1 + np.exp(-(aa - gama) * sigma)))
-            bb = alpha - beta * (1 / (1 + np.exp(-(bb - gama) * sigma)))
-
-            inpt[0] = aa
-            inpt[1] = bb
-
-        return torch.tensor(inpt, dtype=torch.float32)
 
 class SURF_Baseline_Auxi(nn.Module):
     def __init__(self, args):
@@ -336,7 +214,6 @@ class SURF_Baseline_Auxi(nn.Module):
 
         # print(x.shape)
         return x, layer3, layer4, x_rgb_out, x_ir_out, x_depth_out, p
-
 
 class SURF_Baseline_Auxi_Weak(nn.Module):
     def __init__(self, args):
@@ -566,7 +443,6 @@ class SURF_MMANet(nn.Module):
             depth_weight = (depth_low / (depth_high + 1e-6)).abs().sum()
             ir_weight = (ir_low / (ir_high + 1e-6)).abs().sum()
             r_w, d_w, i_w, = self.weightFun(rgb_weight, depth_weight, ir_weight)
-            # print(r_w, d_w, i_w)
         else:
             r_w, d_w, i_w, = 1,1,1
         x_rgb = self.special_bone_rgb(img_rgb)
@@ -634,7 +510,6 @@ class SURF_MMANet(nn.Module):
         rgb_w = rgb_w.float()
         ir_w = ir_w.float()
         depth_w = depth_w.float()
-
 
         alpha = 1.5  # 1.5
         beta = 1  # 1
